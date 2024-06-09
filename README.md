@@ -5,7 +5,10 @@
 
 
 ## Содержание лабораторных работ
-1. [ЛР №1 Dockerfile](lab1/README.md)
-2. [ЛР №2 Docker Compose](lab2/README.md)
-3. [ЛР №3 Kubernetes](lab3/README.md)
-4. [ЛР №4 More Kubernetes](lab4/README.md)
+[№1 Dockerfile](lab1/README.md)
+
+[№2 Docker Compose](lab2/README.md)
+
+[№3 Kubernetes](lab3/README.md)
+
+[№4 More Kubernetes](lab4/README.md)
