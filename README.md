@@ -1,16 +1,16 @@
+# Containerization and application orchestration, ITMO, Spring 2024
 
-# Контейнеризация и оркестрация приложений, ITMO, весна 2024
-
-## Описание
-Курс посвящен знакомству и работе с технологиями контейнеризации и DevOps практиками. Предлагается подробно рассмотреть технологии контейнеризации и оркестрации, их особенности, преимущества/недостатки, и действительно ли они так повсеместно необходимы и почему. Повышенное внимание будет уделено природе понятия DevOps, а также особенностями микросервисной инфраструктуры. Также в рамках дисциплины будут получены практические навыки работы с Docker, Docker Compose и Kubernetes
+## Description
+This course is dedicated to familiarizing and working with containerization technologies and DevOps practices. We propose to take a detailed look at containerization and orchestration technologies, their features, advantages/disadvantages, and whether they are truly universally necessary and why. Special attention will be paid to the nature of the DevOps concept, as well as the features of microservice infrastructure. In addition, as part of the discipline, practical skills in working with Docker, Docker Compose, and Kubernetes will be acquired.
 
 
-## Содержание лабораторных работ
-## Лабораторная 1. Dockerfile
-### Задача
-Написать два Dockerfile – плохой и хороший. Написать две плохие практики по использованию контейнеров
+## Contents of the laboratory assignments
 
-### Запуск
+## Task 1. Dockerfile
+
+Write two Dockerfiles – a bad one and a good one. Write two bad practices for using containers.
+
+### Run
 ```commandline
 cd lab1\server
 ```
@@ -23,9 +23,9 @@ docker run -d --name test_name -p 8000:8000 test_name
 ```commandline
 OpenAPI: http://localhost:8000/api/docs
 ```
-### Описание Dockerfile
+### Description of Dockerfile
 
-**Плохой Dockerfile**
+**Bad Dockerfile**
 ```
 from python:latest
 
@@ -43,7 +43,7 @@ volume /app/data
 ```
 
 
-**Хороший Dockerfile**
+**Good Dockerfile**
 ```
 FROM python:3.10
 
@@ -59,64 +59,65 @@ CMD ["uvicorn", "server.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 VOLUME /app/data
 ```
-Создает Docker-образа на базе Python 3.10.
-- **FROM python:3.10** - устанавливает базовый образ, от которого будет строиться новый образ. В данном случае используется официальный образ Python версии 3.10.
+Creates a Docker image based on Python 3.10.
+- **FROM python:3.10** - sets the base image on which the new image will be built. In this case, the official Python image version 3.10 is used.
+
+- **WORKDIR /app** - sets the working directory inside the container to /app.
+
+- **COPY ./requirements.txt /app/server/requirements.txt \ ./alembic.ini /app/alembic.ini \ ./src /app/server/src** - copies several files from the build context (the directory where Dockerfile is located) to the specified paths inside the container:
+    - **requirements.txt** - a file with a list of Python dependencies to install.
+    - **alembic.ini** - the configuration file for Alembic (a tool for database migrations).
+    - **src** - the directory containing the application source code.
+
+- **RUN pip install --no-cache-dir --upgrade -r /app/server/requirements.txt** - installs the Python dependencies listed in requirements.txt using pip. The --no-cache-dir flag prevents the use of package caches, and --upgrade updates packages to the latest version.
+- **CMD ["uvicorn", "server.src.main:app", "--host", "0.0.0.0", "--port", "8000"]** - runs the uvicorn server with the application defined in the main module from the server.src package, on the host "0.0.0.0" and port "8000".
+- **VOLUME /app/data** - all data written to this directory inside the container will be stored outside the container, which allows you to keep it even after the container is stopped or deleted.
 
 
-- **WORKDIR /app** - устанавливает рабочую директорию внутри контейнера на /app.
+### Bad and good practices
+1. **Using FROM python:latest in Dockerfile is not recommended**:
+    - The latest tag points to the freshest version of the base image at the time of the build. However, the contents of the image with the latest tag can change over time as new versions are released. This means that when you rebuild the container later, you may get a completely different result because the base image has changed. This violates the principle of build reproducibility.
+    - The latest tag does not specify the exact version of the base image, which complicates tracking dependencies and reproducing the environment in the future.
+    - New versions of the base image may contain changes that break compatibility with your application. Using latest can lead to unforeseen failures or errors after the base image is updated.
+
+2. **It is recommended to use apt-get update**:
+    - Updating package lists: When installing or updating packages, your operating system should know where to find them. apt-get update updates the list of available packages from the repositories so that your system has the most up-to-date information on available packages and their versions.
+    - Preventing installation errors: If you do not run apt-get update before installing new packages, you may run into errors due to outdated or unavailable package lists.
+    - Ensuring security: Updating the package list is also important from a security standpoint. New updates may contain vulnerability fixes, and updating the package lists helps ensure you get the latest secure versions of the packages.
+
+3. **Not using multiple RUN instructions (breaking them into multiple lines)**:
+    - Increased image size: Each RUN instruction creates a new layer in a Docker image. It can slow down the build process and increase its size.
+    - Worse caching: When instructions are separated, Docker recreates all subsequent layers, even if the input data did not change.
+
+4. **Using lowercase commands**
+    - Readability: Using the standard style where keywords start with an uppercase letter can improve the readability of a Dockerfile for other developers, especially if they are used to this style.
 
 
-- **COPY ./requirements.txt /app/server/requirements.txt \ ./alembic.ini /app/alembic.ini \ ./src /app/server/src** - копирует несколько файлов из контекста сборки (директории, где находится Dockerfile) в указанные пути внутри контейнера:
-    - **requirements.txt** - файл с перечнем зависимостей Python, которые нужно установить.
-    - **alembic.ini** - конфигурационный файл для Alembic (инструмента для миграций баз данных). 
-    - **src** - директория, содержащая исходный код приложения.
+### When NOT to use containers at all
+1. **Small projects or microservices with a low degree of isolation**:
+    - If your project is very small or does not require complex infrastructure, containers can be redundant. For example, if you have a simple application written in one programming language with no dependencies that need isolation, installing it directly on the host machine may be simpler and less resource-intensive.
+
+2. **Local development on individual machines**:
+   - If your team works on separate machines and does not need a standardized development environment, containers can be excessive. Instead, each developer can configure their environment according to their own preferences.
 
 
-- **RUN pip install --no-cache-dir --upgrade -r /app/server/requirements.txt** - устанавливает зависимости Python, перечисленные в файле requirements.txt, используя pip. Флаг --no-cache-dir предотвращает использование кэша пакетов, а --upgrade обновляет пакеты до последней версии.
-- **CMD ["uvicorn", "server.src.main:app", "--host", "0.0.0.0", "--port", "8000"]** - запускает сервер uvicorn с приложением, определенным в модуле main из пакета server.src, на хосте "0.0.0.0" и порту "8000".
-- **VOLUME /app/data** - Все данные, которые будут записаны в этот каталог внутри контейнера, будут сохранены за пределами контейнера, что позволит сохранить их даже после остановки или удаления контейнера.
+## Task 2. Docker Compose
 
+Create a docker-compose.yml with at least three services
 
-### Плохие и хорошие практики
-1. **Использование FROM python:latest в Dockerfile не рекомендуется**:
-    - Тег latest указывает на самую свежую версию базового образа на момент сборки. Однако содержимое образа с тегом latest может меняться со временем по мере выхода новых версий. Это означает, что при повторной сборке контейнера через некоторое время вы можете получить совершенно другой результат, так как базовый образ изменился. Это нарушает принцип воспроизводимости сборки.
-    - Тег latest не указывает на точную версию базового образа, что затрудняет отслеживание зависимостей и воспроизведение среды в будущем.
-    - Новые версии базового образа могут содержать изменения, которые ломают совместимость с вашим приложением. Использование latest может привести к непредвиденным сбоям или ошибкам после обновления базового образа.
-2. **Рекомендуется использовать apt-get update**:
-    - Обновление списков пакетов: Когда вы устанавливаете новый пакет или обновляете существующий, ваша операционная система должна знать, где искать эти пакеты. apt-get update обновляет список доступных пакетов из репозиториев, чтобы ваша система могла быть уверена, что она имеет самые актуальные сведения о доступных пакетах и их версиях
-    - Предотвращение ошибок установки: Если вы не выполняете apt-get update перед установкой новых пакетов, то можете столкнуться с ошибками, связанными с тем, что версии пакетов в списках пакетов устарели или недоступны.
-    - Обеспечение безопасности: Обновление списка пакетов также важно с точки зрения безопасности. Новые обновления могут содержать исправления уязвимостей, и обновление списка пакетов поможет вам убедиться, что вы получаете последние безопасные версии пакетов.
-3. **Не использование деление инструкций RUN на несколько строк:**
-    - Увеличение размера образа: Каждая инструкция RUN создает новый слой в образе Docker. Может привести к замедлению процесса сборки образа и увеличению его размера 
-    - Ухудшение кэширования: Когда инструкции разделены, Docker пересоздает все последующие слои, даже если входные данные не изменились.
-4. **Написание команд с маленькой буквы**
-    - Читаемость: Использование стандартного стиля написания команд, где ключевые слова начинаются с заглавной буквы, может повысить читаемость Dockerfile для других разработчиков, особенно если они привыкли к этому стилю.
+**Based on the Dockerfile from Lab 1, create a Compose project. Mandatory requirements:**
+- at least 1 init + 2 app services (one-time init + application + database or something else, as long as they work in tandem)
+- automatic image build from the Dockerfile located nearby and assigning it (the image) a name
+- strict naming of the resulting containers
+- at least one of the services must have depends_on
+- at least one of the services must have a volume
+- at least one of the services must expose a port to the outside
+- at least one of the services must have a command and/or entrypoint key (you can reuse the one from the Dockerfile)
+- add a healthcheck
+- all envs must be specified not in the docker-compose.yml itself, but in a .env file located nearby
+- a network must be explicitly specified (one for all)
 
-
-### Когда НЕ стоит использовать контейнеры в целом
-1. **Малые проекты или микросервисы с низкой степенью изоляции:** 
-    - Если ваш проект очень маленький или не требует сложной инфраструктуры, контейнеры могут быть избыточны. Например, если у вас есть простое приложение на одном языке программирования без зависимостей, которые необходимо изолировать, просто установка его на хост-машину может быть более простым и менее накладным способом.
-2. **Локальная разработка на отдельных машинах:**
-   - Если ваша команда работает на отдельных машинах и не нуждается в стандартизации среды разработки, контейнеры могут быть излишними. Вместо этого, каждый разработчик может настроить свою среду в соответствии с собственными предпочтениями.
-
-
-## Лабораторная 2. Docker Compose
-
-### Задача
-Создать docker-compose.yml из минимум трех сервисов
-
-**На основе Dockerfile из ЛР 1 создать композ проект. Обязательные требования:**
-- минимум 1 init + 2 app сервиса (одноразовый init + приложение + бд или что-то другое, главное чтоб работало в связке)
-- автоматическая сборка образа из лежащего рядом Dockerfile и присваивание ему (образу) имени
-- жесткое именование получившихся контейнеров 
-- минимум один из сервисов обязательно с depends_on
-- минимум один из сервисов обязательно с volume
-- минимум один из сервисов обязательно с прокидыванием порта наружу
-- минимум один из сервисов обязательно с ключом command и/или entrypoint (можно переиспользовать тот же, что в Dockerfile)
-- добавить healthcheck
-- все env-ы прописать не в сам docker-compose.yml, а в лежащий рядом файл .env
-- должна быть явно указана network (одна для всех)
-### Запуск
+### Run
 ```commandline
 cd lab2
 ```
@@ -126,7 +127,7 @@ cp .env.example .env
 ```commandline
 docker-compose up
 ```
-OpenAPI: 
+OpenAPI:
 ```commandline
 http://localhost:8000/api/docs
 ```
@@ -135,68 +136,69 @@ Health Check:
 http://localhost:8000/health
 ```
 
-### Ответы на вопросы
-**1. Можно ли ограничивать ресурсы (например, память или CPU) для сервисов в docker-compose.yml? Если нет, то почему, если да, то как?**
-Да, в Docker Compose можно ограничивать ресурсы для контейнеров, используя специальные параметры в файле docker-compose.yml.
-Чтобы ограничить память для контейнера, можно использовать параметр mem_limit. 
+### Answers to questions
+**1. Is it possible to limit resources (e.g., memory or CPU) for services in docker-compose.yml? If not, why not; if yes, how?**
+Yes, in Docker Compose, you can limit resources for containers using special parameters in the docker-compose.yml file.
 
-**Например:**
+To limit memory for a container, you can use the mem_limit parameter.
+
+**For example:**
 ```yaml
 services:
   my_service:
     image: my_image
-    memory: 512m # Устанавливает ограничение памяти в 512 МБ
+    memory: 512m # Sets the memory limit to 512 MB
 ```
-Для ограничения использования CPU, можно использовать параметры cpu_quota и cpu_period. cpu_quota определяет долю CPU, доступную для контейнера, а cpu_period задает период времени, за который эта квота применяется. 
+To limit CPU usage, you can use the cpu_quota and cpu_period parameters. cpu_quota defines the share of CPU available to the container, and cpu_period sets the period of time over which this quota is applied.
 
-**Например:**
+**For example:**
 ```yaml
 services:
   my_service:
     image: my_image
-    cpu_quota: 50000 # Ограничивает использование CPU до 50% от одного ядра
-    cpu_period: 100000 # Период времени в микросекундах (100000 = 100 мс)
+    cpu_quota: 50000 # Limits CPU usage to 50% of one core
+    cpu_period: 100000 # The time period in microseconds (100000 = 100 ms)
 ```
-В этом примере контейнер my_service будет ограничен использованием 50% от одного ядра CPU.
+In this example, the my_service container is limited to using 50% of one CPU core.
 
-Ограничения ресурсов помогают предотвратить ситуации, когда один контейнер потребляет слишком много ресурсов и влияет на работу других контейнеров или хоста Docker.
+Resource constraints help prevent a situation where one container consumes too many resources and affects the operation of other containers or the Docker host.
 
 
 \
-**2.Как можно запустить только определенный сервис из docker-compose.yml, не запуская остальные?**
+**2. How can you run only a specific service from docker-compose.yml without running the others?**
 
-Чтобы запустить только определенный сервис из docker-compose.yml, не запуская остальные, можно использовать команду:
+To run only a specific service from docker-compose.yml, without running the rest, you can use the command:
 ```commandline
 docker-compose up service_name
 ```
-Заменить <service_name> на имя сервиса, который хотим запустить.
+Replace <service_name> with the name of the service you want to run.
 
 
-## Лабораторная 3. Kubernetes
-### Задача
-Установить Kubernetes на локальную машину (приведен пример для minikube на Windows 10/11). Развернуть тестовый сервис
+## Task 3. Kubernetes
 
-**Шаги:**
-- Установка minikube
-- Создать объекты через CLI
-- Подключиться извне
+Install Kubernetes on your local machine (the example is for minikube on Windows 10/11). Deploy a test service.
 
-**А также Осуществить махинации над манифестами из примера, чтоб получить следующее:**
-- Для постгреса перенести POSTGRES_USER и POSTGRES_PASSWORD из конфигмапы в секреты (очевидно, понадобится новый манифест для сущности Secret)
-- Для некстклауда перенести его переменные (NEXTCLOUD_UPDATE, ALLOW_EMPTY_PASSWORD и проч.) из деплоймента в конфигмапу (очевидно, понадобится новый манифест для сущности ConfigMap)
-- Для некстклауда добавить Liveness и Readiness пробы
+**Steps:**
+- Install minikube
+- Create objects via CLI
+- Connect from the outside
 
-### Запуск
+**And also make manipulations on the manifests from the example to achieve the following:**
+- For Postgres, move POSTGRES_USER and POSTGRES_PASSWORD from the ConfigMap to Secrets (obviously, a new manifest for the Secret entity is needed)
+- For Nextcloud, move its variables (NEXTCLOUD_UPDATE, ALLOW_EMPTY_PASSWORD, etc.) from the Deployment to the ConfigMap (obviously, a new manifest for the ConfigMap entity is needed)
+- For Nextcloud, add Liveness and Readiness probes
+
+### Run
 ```commandline
 cd lab3
 ```
 ___
-**Создание объектов через CLI**
-- Запускаем minikube и создаем yml-файлы (манифесты) конфигмапы, сервиса и деплоймента.
-  - Осуществляем махинации над манифестами:
-      - Для постгреса перенести POSTGRES_USER и POSTGRES_PASSWORD из конфигмапы в секреты (очевидно, понадобится новый манифест для сущности Secret)
-      - Для некстклауда перенести его переменные (NEXTCLOUD_UPDATE, ALLOW_EMPTY_PASSWORD и проч.) из деплоймента в конфигмапу (очевидно, понадобится новый манифест для сущности ConfigMap)
-      - Для некстклауда добавить Liveness и Readiness пробы
+**Creating objects via CLI**
+- Start minikube and create the yml files (manifests) for the ConfigMap, Service, and Deployment.
+  - Make manipulations on the manifests:
+      - For Postgres, move POSTGRES_USER and POSTGRES_PASSWORD from the ConfigMap to Secrets (obviously, a new manifest for the Secret entity is needed)
+      - For Nextcloud, move its variables (NEXTCLOUD_UPDATE, ALLOW_EMPTY_PASSWORD, etc.) from the Deployment to the ConfigMap (obviously, a new manifest for the ConfigMap entity is needed)
+      - For Nextcloud, add Liveness and Readiness probes
 ```commandline
 minikube start
 kubectl create -f pg_configmap.yml
@@ -233,69 +235,70 @@ kubectl config view
 ![image](/lab3/docs/3.png)
 ___
 
-### Вопросы
-**Bажен ли порядок выполнения этих манифестов? Почему?**
+### Questions
+**Is the order of execution of these manifests important? Why?**
 
-Да, порядок выполнения этих манифестов важен по следующим причинам:
-- **pg_configmap.yml** и **postgres-secrets.yml** создают ConfigMap и Secret, которые нужны для настройки и запуска PostgreSQL. Эти ресурсы должны быть созданы до создания деплоя PostgreSQL, так как деплой использует эти ресурсы для настройки окружения контейнера.
-- **pg_service.yml** создает сервис, который предоставляет доступ к базе данных PostgreSQL через сеть Kubernetes. Это важно, чтобы Nextcloud мог подключиться к базе данных по имени сервиса 'postgres-service'
-- **pg_deployment.yml** создает деплой PostgreSQL, который зависит от существования ConfigMap и Secret, чтобы успешно запуститься.
-- **nextcloud_configmap.yml** создает ConfigMap для Nextcloud, который содержит настройки, необходимые для инициализации и конфигурации Nextcloud.
-- **nextcloud.yml** создает деплой Nextcloud, который использует ConfigMap и Secret для своей конфигурации, а также подключается к базе данных PostgreSQL через сервис postgres-service.
+Yes, the order of these manifests is important for the following reasons:
+- **pg_configmap.yml** and **postgres-secrets.yml** create ConfigMap and Secret needed for the configuration and launch of PostgreSQL. These resources must be created before the PostgreSQL deployment is created, as the deployment uses these resources to configure the container environment.
+- **pg_service.yml** creates the service that provides network access to the PostgreSQL database inside Kubernetes. This is important so that Nextcloud can connect to the database by the name of the service 'postgres-service'.
+- **pg_deployment.yml** creates the PostgreSQL deployment, which depends on the existing ConfigMap and Secret to run successfully.
+- **nextcloud_configmap.yml** creates a ConfigMap for Nextcloud, containing the settings needed for Nextcloud initialization and configuration.
+- **nextcloud.yml** creates the Nextcloud deployment, which uses the ConfigMap and Secret for configuration, and also connects to the PostgreSQL database via the postgres-service.
 
-
-
-**Что (и почему) произойдет, если отскейлить количество реплик postgres-deployment в 0, затем обратно в 1, после чего попробовать снова зайти на Nextcloud?**
-- При остановке и запуске пода PostgreSQL данные базы данных не сохранились. При попытке зайти на Nextcloud после перезапуска пода PostgreSQL, Nextcloud не сможет подключиться к базе данных, так как данные были утеряны.
-- Чтобы обеспечить сохранность данных между перезапусками подов, необходимо использовать PersistentVolume и PersistentVolumeClaim для хранения данных базы данных вне пода.
+**What (and why) will happen if you scale the number of replicas of postgres-deployment to 0, then back to 1, and then try to log in to Nextcloud again?**
+- When stopping and restarting the PostgreSQL pod, the database data is not saved. When you try to log in to Nextcloud after restarting the PostgreSQL pod, Nextcloud will not be able to connect to the database because the data was lost.
+- To ensure data persistence between pod restarts, you need to use PersistentVolume and PersistentVolumeClaim to store the database data outside the pod.
 
 - ![image](/lab3/docs/5.png)
 - ![image](/lab3/docs/6.png)
 
-## Лабораторная 3. More Kubernetes
-### Задача
-Развернуть свой собственный сервис в Kubernetes, по аналогии с ЛР 3
 
-**Можно использовать Minikube из ЛР 3. Нужно развернуть сервис в связке из минимум 2 контейнеров + 1 init, по аналогии с ЛР 2.
-Требования:**
-- минимум два Deployment, по количеству сервисов 
-- кастомный образ для минимум одного Deployment (т.е. не публичный и собранный из своего Dockerfile)
-- минимум один Deployment должен содержать в себе контейнер и инит-контейнер
-- минимум один Deployment должен содержать volume (любой)
-- обязательно использование ConfigMap и/или Secret
-- обязательно Service хотя бы для одного из сервисов (что логично, если они работают в связке) 
-- Liveness и/или Readiness пробы минимум в одном из Deployment
-- обязательно использование лейблов (помимо обязательных selector/matchLabel, конечно)
+## Task 4. More Kubernetes
 
-### Описание
-**Создание объектов через CLI**
-- Разворачиваем свой собственный сервис в Kubernetes, по аналогии с ЛР 3
-  - минимум два Deployment, по количеству сервисов 
-  - кастомный образ для минимум одного Deployment (т.е. не публичный и собранный из своего Dockerfile)
-  - минимум один Deployment должен содержать в себе контейнер и инит-контейнер 
-  - минимум один Deployment должен содержать volume (любой)
-  - обязательно использование ConfigMap и/или Secret 
-  - обязательно Service хотя бы для одного из сервисов (что логично, если они работают в связке)
-  - Liveness и/или Readiness пробы минимум в одном из Deployment 
-  - обязательно использование лейблов (помимо обязательных selector/matchLabel, конечно)
+### Task
+Deploy your own service in Kubernetes, similar to Lab 3
+
+**You can use Minikube from Lab 3. You need to deploy a service in a bundle of at least 2 containers + 1 init, similar to Lab 2. 
+Requirements:**
+- at least two Deployments, by the number of services
+- a custom image for at least one Deployment (i.e., not public and built from your own Dockerfile)
+- at least one Deployment should contain a container and an init-container
+- at least one Deployment should contain a volume (any)
+- mandatory use of ConfigMap and/or Secret
+- mandatory Service for at least one of the services (which makes sense if they work in tandem)
+- Liveness and/or Readiness probes in at least one of the Deployments
+- mandatory use of labels (in addition to the required selector/matchLabel, of course)
+
+### Description
+**Creating objects via CLI**
+- Deploying our own service in Kubernetes, similar to Lab 3
+  - at least two Deployments, by the number of services
+  - a custom image for at least one Deployment (i.e., not public and built from your own Dockerfile)
+  - at least one Deployment should contain a container and an init-container
+  - at least one Deployment should contain a volume (any)
+  - mandatory use of ConfigMap and/or Secret
+  - mandatory Service for at least one of the services (which makes sense if they work in tandem)
+  - Liveness and/or Readiness probes in at least one of the Deployments
+  - mandatory use of labels (in addition to the required selector/matchLabel, of course)
 
 
 - **configmap.yml**
-  - Используется для хранения конфигурационных данных, которые могут быть использованы контейнерами в поде. В данном случае, хранится одна переменная окружения APP_ENV, установленная в значение production.
+  - Used to store configuration data that can be used by containers in a pod. In this case, there is one environment variable APP_ENV set to production.
 - **Dockerfile**
-  - Описывает процесс создания Docker-образа для FastAPI-приложения. Используется образ Python 3.10, устанавливаются зависимости из requirements.txt, копируются все файлы приложения, и запускается приложение с помощью Uvicorn
+  - Describes the process of creating a Docker image for a FastAPI application. Uses the Python 3.10 image, installs dependencies from requirements.txt, copies all application files, and launches the app via Uvicorn.
 - **fastapi-deployment-and-service.yml**
-  - Разворачивает две реплики приложения FastAPI, используя кастомный образ. Включает init-контейнер, использует ConfigMap и Secret, монтирует volume и определяет livenessProbe.
-  - Создает сервис для FastAPI, который позволяет другим приложениям взаимодействовать с ним.
+  - Deploys two replicas of the FastAPI application using a custom image. Includes an init-container, uses ConfigMap and Secret, mounts a volume, and defines a livenessProbe.
+  - Creates a service for FastAPI that allows other applications to interact with it.
 - **redis-deployment-and-service.yml**
-  - Разворачивает одну реплику Redis.
-  - Создает сервис для Redis, позволяя другим приложениям, таким как FastAPI, взаимодействовать с Redis.
+  - Deploys one replica of Redis.
+  - Creates a service for Redis, allowing other applications such as FastAPI to interact with Redis.
 - **secret.yml**
-  - Используется для хранения конфиденциальных данных. В данном случае, хранится секретный ключ SECRET_KEY
+  - Used to store confidential data. In this case, a SECRET_KEY is stored.
 - **main.py**
-  - Простое приложение, которое подключается к Redis и увеличивает счетчик при каждом запросе к корневому URL (/).
+  - A simple application that connects to Redis and increments a counter with each request to the root URL (/).
+
 ___
-### Запуск
+### Run
 ```commandline
 cd lab3
 ```
@@ -303,8 +306,8 @@ cd lab3
 ```commandline
 minikube start
 ```
-**Билдим локальный образ и загружаем его в Minikube:**
-- Используется для настройки окружения командной строки Windows (cmd) для работы с Docker, который управляется Minikube.
+**Build the local image and load it into Minikube:**
+- Used to configure the Windows (cmd) command-line environment to work with Docker managed by Minikube.
 ```commandline
 @FOR /f "tokens=*" %i IN ('minikube docker-env --shell cmd') DO @%i
 ```
@@ -326,7 +329,7 @@ ___
 ```commandline
 minikube service fastapi-service --url
 ```
-Пример:
+Example:
 ```commandline
 http://127.0.0.1:58315/docs
 ```
@@ -357,9 +360,3 @@ kubectl config view
 ```
 ![image](/lab4/docs/7.png)
 ___
-
-
-
-
-
-
