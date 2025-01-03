@@ -1,20 +1,20 @@
-## Лабораторная 2. Docker Compose
+## Task 2. Docker Compose
 
-### Задача
-Создать docker-compose.yml из минимум трех сервисов
+Create a `docker-compose.yml` file with at least three services
 
-**На основе Dockerfile из ЛР 1 создать композ проект. Обязательные требования:**
-- минимум 1 init + 2 app сервиса (одноразовый init + приложение + бд или что-то другое, главное чтоб работало в связке)
-- автоматическая сборка образа из лежащего рядом Dockerfile и присваивание ему (образу) имени
-- жесткое именование получившихся контейнеров 
-- минимум один из сервисов обязательно с depends_on
-- минимум один из сервисов обязательно с volume
-- минимум один из сервисов обязательно с прокидыванием порта наружу
-- минимум один из сервисов обязательно с ключом command и/или entrypoint (можно переиспользовать тот же, что в Dockerfile)
-- добавить healthcheck
-- все env-ы прописать не в сам docker-compose.yml, а в лежащий рядом файл .env
-- должна быть явно указана network (одна для всех)
-### Запуск
+**Based on the Dockerfile from Lab 1, create a Compose project. Mandatory requirements:**
+- At least 1 init + 2 app services (a one-time init + an application + a database or something else, as long as they work together)
+- Automatic image build from the Dockerfile located nearby, and assigning a name to that image
+- Strict naming for the resulting containers
+- At least one of the services must have `depends_on`
+- At least one of the services must have a volume
+- At least one of the services must expose a port to the outside
+- At least one of the services must use the `command` and/or `entrypoint` key (you can reuse the one from the Dockerfile)
+- Add a healthcheck
+- All environment variables (`env`s) must be specified not in the `docker-compose.yml` file itself, but in a nearby `.env` file
+- A network must be explicitly specified (one for all)
+
+### Run
 ```commandline
 cd lab2
 ```
@@ -24,7 +24,7 @@ cp .env.example .env
 ```commandline
 docker-compose up
 ```
-OpenAPI: 
+OpenAPI:
 ```commandline
 http://localhost:8000/api/docs
 ```
@@ -33,40 +33,38 @@ Health Check:
 http://localhost:8000/health
 ```
 
-### Ответы на вопросы
-**1. Можно ли ограничивать ресурсы (например, память или CPU) для сервисов в docker-compose.yml? Если нет, то почему, если да, то как?**
-Да, в Docker Compose можно ограничивать ресурсы для контейнеров, используя специальные параметры в файле docker-compose.yml.
-Чтобы ограничить память для контейнера, можно использовать параметр mem_limit. 
+### Answers to questions
+**1. Is it possible to limit resources (e.g., memory or CPU) for services in `docker-compose.yml`? If not, why not? If yes, how?**  
+Yes, in Docker Compose you can limit resources for containers by using special parameters in the `docker-compose.yml` file.  
+To limit a container’s memory, you can use the `mem_limit` parameter.
 
-**Например:**
+**Example:**
 ```yaml
 services:
   my_service:
     image: my_image
-    memory: 512m # Устанавливает ограничение памяти в 512 МБ
+    memory: 512m # Sets a memory limit of 512 MB
 ```
-Для ограничения использования CPU, можно использовать параметры cpu_quota и cpu_period. cpu_quota определяет долю CPU, доступную для контейнера, а cpu_period задает период времени, за который эта квота применяется. 
+To limit CPU usage, you can use the `cpu_quota` and `cpu_period` parameters. `cpu_quota` specifies the share of CPU available to the container, and `cpu_period` sets the time period over which this quota is applied.
 
-**Например:**
+**Example:**
 ```yaml
 services:
   my_service:
     image: my_image
-    cpu_quota: 50000 # Ограничивает использование CPU до 50% от одного ядра
-    cpu_period: 100000 # Период времени в микросекундах (100000 = 100 мс)
+    cpu_quota: 50000  # Limits CPU usage to 50% of one CPU core
+    cpu_period: 100000  # The time period in microseconds (100000 = 100 ms)
 ```
-В этом примере контейнер my_service будет ограничен использованием 50% от одного ядра CPU.
+In this example, the `my_service` container is limited to using 50% of a single CPU core.
 
-Ограничения ресурсов помогают предотвратить ситуации, когда один контейнер потребляет слишком много ресурсов и влияет на работу других контейнеров или хоста Docker.
+Resource constraints help prevent situations where one container consumes too many resources and impacts the performance of other containers or the Docker host.
 
 
 \
-**2.Как можно запустить только определенный сервис из docker-compose.yml, не запуская остальные?**
+**2. How can you run only a specific service from `docker-compose.yml` without running the others?**  
 
-Чтобы запустить только определенный сервис из docker-compose.yml, не запуская остальные, можно использовать команду:
+To run only a specific service from `docker-compose.yml` without running the rest, you can use the command:
 ```commandline
 docker-compose up service_name
 ```
-Заменить <service_name> на имя сервиса, который хотим запустить.
-
-
+Replace `<service_name>` with the name of the service you want to run.

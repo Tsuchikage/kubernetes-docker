@@ -1,28 +1,28 @@
-## Лабораторная 3. Kubernetes
-### Задача
-Установить Kubernetes на локальную машину (приведен пример для minikube на Windows 10/11). Развернуть тестовый сервис
+## Task 3. Kubernetes
 
-**Шаги:**
-- Установка minikube
-- Создать объекты через CLI
-- Подключиться извне
+Install Kubernetes on the local machine (example given for Minikube on Windows 10/11). Deploy a test service.
 
-**А также Осуществить махинации над манифестами из примера, чтоб получить следующее:**
-- Для постгреса перенести POSTGRES_USER и POSTGRES_PASSWORD из конфигмапы в секреты (очевидно, понадобится новый манифест для сущности Secret)
-- Для некстклауда перенести его переменные (NEXTCLOUD_UPDATE, ALLOW_EMPTY_PASSWORD и проч.) из деплоймента в конфигмапу (очевидно, понадобится новый манифест для сущности ConfigMap)
-- Для некстклауда добавить Liveness и Readiness пробы
+**Steps:**
+- Install Minikube
+- Create objects via CLI
+- Connect externally
 
-### Запуск
+**Additionally, make some modifications to the example manifests to achieve the following:**
+- For Postgres, move `POSTGRES_USER` and `POSTGRES_PASSWORD` from the ConfigMap to a Secret (obviously, a new manifest for the Secret resource is needed)
+- For Nextcloud, move its variables (`NEXTCLOUD_UPDATE`, `ALLOW_EMPTY_PASSWORD`, etc.) from the Deployment into a ConfigMap (obviously, a new manifest for the ConfigMap resource is needed)
+- For Nextcloud, add Liveness and Readiness probes
+
+### Run
 ```commandline
 cd lab3
 ```
 ___
-**Создание объектов через CLI**
-- Запускаем minikube и создаем yml-файлы (манифесты) конфигмапы, сервиса и деплоймента.
-  - Осуществляем махинации над манифестами:
-      - Для постгреса перенести POSTGRES_USER и POSTGRES_PASSWORD из конфигмапы в секреты (очевидно, понадобится новый манифест для сущности Secret)
-      - Для некстклауда перенести его переменные (NEXTCLOUD_UPDATE, ALLOW_EMPTY_PASSWORD и проч.) из деплоймента в конфигмапу (очевидно, понадобится новый манифест для сущности ConfigMap)
-      - Для некстклауда добавить Liveness и Readiness пробы
+**Creating objects via CLI**
+- Start Minikube and create the YAML files (manifests) for the ConfigMap, Service, and Deployment.
+  - Modify the manifests as follows:
+      - For Postgres, move `POSTGRES_USER` and `POSTGRES_PASSWORD` from the ConfigMap to Secrets (obviously, a new manifest for the Secret resource is needed)
+      - For Nextcloud, move its variables (`NEXTCLOUD_UPDATE`, `ALLOW_EMPTY_PASSWORD`, etc.) from the Deployment into a ConfigMap (obviously, a new manifest for the ConfigMap resource is needed)
+      - For Nextcloud, add Liveness and Readiness probes
 ```commandline
 minikube start
 kubectl create -f pg_configmap.yml
@@ -36,7 +36,7 @@ kubectl create -f nextcloud.yml
 ```commandline
 kubectl get pods
 ```
-![image](https://github.com/AndreyPriv/containerization_and_orchestration_itmo/blob/main/lab3/docs/1.png)
+![image](/lab3/docs/1.png)
 ___
 ```commandline
 kubectl get configmap
@@ -44,36 +44,35 @@ kubectl get deployment
 kubectl get secret
 kubectl get service
 ```
-![image](https://github.com/AndreyPriv/containerization_and_orchestration_itmo/blob/main/lab3/docs/4.png)
+![image](/lab3/docs/4.png)
 ___
 ```commandline
 kubectl describe pod <pod_name>
 ```
 
-![image](https://github.com/AndreyPriv/containerization_and_orchestration_itmo/blob/main/lab3/docs/2.png)
+![image](/lab3/docs/2.png)
 
 ___
 ```commandline
 kubectl config view
 ```
-![image](https://github.com/AndreyPriv/containerization_and_orchestration_itmo/blob/main/lab3/docs/3.png)
+![image](/lab3/docs/3.png)
 ___
 
-### Вопросы
-**Bажен ли порядок выполнения этих манифестов? Почему?**
+### Questions
+**Is the order of these manifests important? Why?**
 
-Да, порядок выполнения этих манифестов важен по следующим причинам:
-- **pg_configmap.yml** и **postgres-secrets.yml** создают ConfigMap и Secret, которые нужны для настройки и запуска PostgreSQL. Эти ресурсы должны быть созданы до создания деплоя PostgreSQL, так как деплой использует эти ресурсы для настройки окружения контейнера.
-- **pg_service.yml** создает сервис, который предоставляет доступ к базе данных PostgreSQL через сеть Kubernetes. Это важно, чтобы Nextcloud мог подключиться к базе данных по имени сервиса 'postgres-service'
-- **pg_deployment.yml** создает деплой PostgreSQL, который зависит от существования ConfigMap и Secret, чтобы успешно запуститься.
-- **nextcloud_configmap.yml** создает ConfigMap для Nextcloud, который содержит настройки, необходимые для инициализации и конфигурации Nextcloud.
-- **nextcloud.yml** создает деплой Nextcloud, который использует ConfigMap и Secret для своей конфигурации, а также подключается к базе данных PostgreSQL через сервис postgres-service.
+Yes, the order of these manifests is important for the following reasons:
+- **pg_configmap.yml** and **postgres-secrets.yml** create a ConfigMap and a Secret needed for configuring and running PostgreSQL. These resources must be created before creating the PostgreSQL Deployment, as the Deployment relies on them to configure the container environment.
+- **pg_service.yml** creates the Service that provides network access to the PostgreSQL database within Kubernetes. This is important so that Nextcloud can connect to the database by the service name `postgres-service`.
+- **pg_deployment.yml** creates the PostgreSQL Deployment, which depends on the existing ConfigMap and Secret to launch successfully.
+- **nextcloud_configmap.yml** creates a ConfigMap for Nextcloud, containing the settings needed for initialization and configuration.
+- **nextcloud.yml** creates the Nextcloud Deployment, which uses the ConfigMap and Secret for its configuration and also connects to the PostgreSQL database through the `postgres-service`.
 
+**What happens if you scale the number of replicas in postgres-deployment to 0, then back to 1, and then try to access Nextcloud again? Why?**
+- When the PostgreSQL pod stops and starts up again, the database data is not saved. If you try to access Nextcloud after restarting the PostgreSQL pod, Nextcloud will not be able to connect to the database because the data has been lost.
+- To ensure data persistence between pod restarts, you need to use a PersistentVolume and PersistentVolumeClaim to store the database data outside of the pod.
 
+![image](/lab3/docs/5.png)
+![image](/lab3/docs/6.png)
 
-**Что (и почему) произойдет, если отскейлить количество реплик postgres-deployment в 0, затем обратно в 1, после чего попробовать снова зайти на Nextcloud?**
-- При остановке и запуске пода PostgreSQL данные базы данных не сохранились. При попытке зайти на Nextcloud после перезапуска пода PostgreSQL, Nextcloud не сможет подключиться к базе данных, так как данные были утеряны.
-- Чтобы обеспечить сохранность данных между перезапусками подов, необходимо использовать PersistentVolume и PersistentVolumeClaim для хранения данных базы данных вне пода.
-
-- ![image](https://github.com/AndreyPriv/containerization_and_orchestration_itmo/blob/main/lab3/docs/5.png)
-- ![image](https://github.com/AndreyPriv/containerization_and_orchestration_itmo/blob/main/lab3/docs/6.png)

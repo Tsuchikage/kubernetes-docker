@@ -1,8 +1,8 @@
-## Лабораторная 1. Dockerfile
-### Задача
-Написать два Dockerfile – плохой и хороший. Написать две плохие практики по использованию контейнеров
+## Task 1. Dockerfile
 
-### Запуск
+Write two Dockerfiles – a bad one and a good one. Also, write two bad practices for using containers.
+
+### Run
 ```commandline
 cd lab1\server
 ```
@@ -15,9 +15,9 @@ docker run -d --name test_name -p 8000:8000 test_name
 ```commandline
 OpenAPI: http://localhost:8000/api/docs
 ```
-### Описание Dockerfile
+### Description of the Dockerfile
 
-**Плохой Dockerfile**
+**Bad Dockerfile**
 ```
 from python:latest
 
@@ -35,7 +35,7 @@ volume /app/data
 ```
 
 
-**Хороший Dockerfile**
+**Good Dockerfile**
 ```
 FROM python:3.10
 
@@ -51,42 +51,43 @@ CMD ["uvicorn", "server.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 VOLUME /app/data
 ```
-Создает Docker-образа на базе Python 3.10.
-- **FROM python:3.10** - устанавливает базовый образ, от которого будет строиться новый образ. В данном случае используется официальный образ Python версии 3.10.
+Creates a Docker image based on Python 3.10.
+- **FROM python:3.10** – sets the base image from which the new image will be built. In this case, the official Python image version 3.10 is used.
+
+- **WORKDIR /app** – sets the working directory inside the container to /app.
+
+- **COPY ./requirements.txt /app/server/requirements.txt \ ./alembic.ini /app/alembic.ini \ ./src /app/server/src** – copies several files from the build context (the directory where the Dockerfile is located) to the specified paths inside the container:
+    - **requirements.txt** – the file listing the Python dependencies to be installed.
+    - **alembic.ini** – the configuration file for Alembic (a tool for database migrations).
+    - **src** – the directory containing the application’s source code.
+
+- **RUN pip install --no-cache-dir --upgrade -r /app/server/requirements.txt** – installs the Python dependencies listed in requirements.txt using pip. The `--no-cache-dir` flag prevents the use of cached packages, and `--upgrade` updates packages to the latest version.
+- **CMD ["uvicorn", "server.src.main:app", "--host", "0.0.0.0", "--port", "8000"]** – runs the Uvicorn server with the application defined in the main module from the `server.src` package, on the host `0.0.0.0` and port `8000`.
+- **VOLUME /app/data** – all data written to this directory inside the container will be stored outside the container, allowing you to preserve it even after stopping or removing the container.
 
 
-- **WORKDIR /app** - устанавливает рабочую директорию внутри контейнера на /app.
+### Bad and Good Practices
+1. **Using FROM python:latest in a Dockerfile is not recommended**:
+    - The `latest` tag refers to the newest version of the base image at the time of the build. However, the contents of the image tagged `latest` can change over time as new versions are released. This means that when you rebuild the container later, you may get a completely different result because the base image has changed. This violates the principle of build reproducibility.
+    - The `latest` tag does not specify the exact version of the base image, making it difficult to track dependencies and reproduce the environment in the future.
+    - New versions of the base image may include changes that break compatibility with your application. Using `latest` can lead to unexpected failures or errors after the base image is updated.
+
+2. **It is recommended to use apt-get update**:
+    - Updating package lists: When you install a new package or update an existing one, your operating system must know where to look for these packages. `apt-get update` refreshes the list of available packages from repositories, ensuring your system has the most current information about available packages and their versions.
+    - Preventing installation errors: If you do not run `apt-get update` before installing new packages, you may encounter errors due to outdated or unavailable package lists.
+    - Ensuring security: Updating package lists is also important from a security standpoint. New updates may contain vulnerability fixes, and updating the package lists helps ensure you get the most secure versions of the packages.
+
+3. **Not splitting RUN instructions into multiple lines**:
+    - Increased image size: Each RUN instruction creates a new layer in the Docker image. It can slow down the build process and increase the image size.
+    - Worse caching: When instructions are separated, Docker recreates all subsequent layers even if the input data did not change.
+
+4. **Writing commands in lowercase**
+    - Readability: Using a standard style where keywords begin with uppercase letters can improve the readability of the Dockerfile for other developers, especially if they are used to that style.
 
 
-- **COPY ./requirements.txt /app/server/requirements.txt \ ./alembic.ini /app/alembic.ini \ ./src /app/server/src** - копирует несколько файлов из контекста сборки (директории, где находится Dockerfile) в указанные пути внутри контейнера:
-    - **requirements.txt** - файл с перечнем зависимостей Python, которые нужно установить.
-    - **alembic.ini** - конфигурационный файл для Alembic (инструмента для миграций баз данных). 
-    - **src** - директория, содержащая исходный код приложения.
+### When NOT to use containers at all
+1. **Small projects or microservices with a low degree of isolation**:
+    - If your project is very small or does not require complex infrastructure, containers can be excessive. For instance, if you have a simple application in a single programming language with no dependencies to isolate, installing it directly on the host machine may be simpler and less costly.
 
-
-- **RUN pip install --no-cache-dir --upgrade -r /app/server/requirements.txt** - устанавливает зависимости Python, перечисленные в файле requirements.txt, используя pip. Флаг --no-cache-dir предотвращает использование кэша пакетов, а --upgrade обновляет пакеты до последней версии.
-- **CMD ["uvicorn", "server.src.main:app", "--host", "0.0.0.0", "--port", "8000"]** - запускает сервер uvicorn с приложением, определенным в модуле main из пакета server.src, на хосте "0.0.0.0" и порту "8000".
-- **VOLUME /app/data** - Все данные, которые будут записаны в этот каталог внутри контейнера, будут сохранены за пределами контейнера, что позволит сохранить их даже после остановки или удаления контейнера.
-
-
-### Плохие и хорошие практики
-1. **Использование FROM python:latest в Dockerfile не рекомендуется**:
-    - Тег latest указывает на самую свежую версию базового образа на момент сборки. Однако содержимое образа с тегом latest может меняться со временем по мере выхода новых версий. Это означает, что при повторной сборке контейнера через некоторое время вы можете получить совершенно другой результат, так как базовый образ изменился. Это нарушает принцип воспроизводимости сборки.
-    - Тег latest не указывает на точную версию базового образа, что затрудняет отслеживание зависимостей и воспроизведение среды в будущем.
-    - Новые версии базового образа могут содержать изменения, которые ломают совместимость с вашим приложением. Использование latest может привести к непредвиденным сбоям или ошибкам после обновления базового образа.
-2. **Рекомендуется использовать apt-get update**:
-    - Обновление списков пакетов: Когда вы устанавливаете новый пакет или обновляете существующий, ваша операционная система должна знать, где искать эти пакеты. apt-get update обновляет список доступных пакетов из репозиториев, чтобы ваша система могла быть уверена, что она имеет самые актуальные сведения о доступных пакетах и их версиях
-    - Предотвращение ошибок установки: Если вы не выполняете apt-get update перед установкой новых пакетов, то можете столкнуться с ошибками, связанными с тем, что версии пакетов в списках пакетов устарели или недоступны.
-    - Обеспечение безопасности: Обновление списка пакетов также важно с точки зрения безопасности. Новые обновления могут содержать исправления уязвимостей, и обновление списка пакетов поможет вам убедиться, что вы получаете последние безопасные версии пакетов.
-3. **Не использование деление инструкций RUN на несколько строк:**
-    - Увеличение размера образа: Каждая инструкция RUN создает новый слой в образе Docker. Может привести к замедлению процесса сборки образа и увеличению его размера 
-    - Ухудшение кэширования: Когда инструкции разделены, Docker пересоздает все последующие слои, даже если входные данные не изменились.
-4. **Написание команд с маленькой буквы**
-    - Читаемость: Использование стандартного стиля написания команд, где ключевые слова начинаются с заглавной буквы, может повысить читаемость Dockerfile для других разработчиков, особенно если они привыкли к этому стилю.
-
-
-### Когда НЕ стоит использовать контейнеры в целом
-1. **Малые проекты или микросервисы с низкой степенью изоляции:** 
-    - Если ваш проект очень маленький или не требует сложной инфраструктуры, контейнеры могут быть избыточны. Например, если у вас есть простое приложение на одном языке программирования без зависимостей, которые необходимо изолировать, просто установка его на хост-машину может быть более простым и менее накладным способом.
-2. **Локальная разработка на отдельных машинах:**
-   - Если ваша команда работает на отдельных машинах и не нуждается в стандартизации среды разработки, контейнеры могут быть излишними. Вместо этого, каждый разработчик может настроить свою среду в соответствии с собственными предпочтениями.
+2. **Local development on separate machines**:
+   - If your team works on separate machines and does not require a standardized development environment, containers may be unnecessary. Instead, each developer can configure their environment according to personal preferences.
