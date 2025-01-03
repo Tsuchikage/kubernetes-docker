@@ -252,7 +252,7 @@ ___
 - ![image](/lab3/docs/5.png)
 - ![image](/lab3/docs/6.png)
 
-## Лабораторная 3. More Kubernetes
+## Лабораторная 4. More Kubernetes
 ### Задача
 Развернуть свой собственный сервис в Kubernetes, по аналогии с ЛР 3
 
